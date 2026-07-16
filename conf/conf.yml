@@ -2,7 +2,7 @@ solon.dataSources:
   db:
     class: "com.zaxxer.hikari.HikariDataSource"
     driverClassName: org.sqlite.JDBC
-    jdbcUrl: jdbc:sqlite:read.db
+    jdbcUrl: jdbc:sqlite:data/read.db
     maxPoolSize: 1
 admin:
   gonggao: ""  #填写公告后 app 每次开启时都会弹出
