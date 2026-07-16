@@ -10,6 +10,7 @@ RUN chmod +x ./gradlew && \
 FROM eclipse-temurin:22-jre
 
 WORKDIR /app
+RUN mkdir -p /app/data
 
 COPY --from=builder /build/build/libs/solon-read-1.0-SNAPSHOT.jar /app/read.jar
 COPY --from=builder /build/conf/conf.yml /app/conf.yml
