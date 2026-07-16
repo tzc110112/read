@@ -65,7 +65,7 @@ object AutoCrawl {
 
         // 获取所有发现分类的URL列表
         val kindUrls = kotlin.runCatching {
-            bs.exploreKinds(true)
+            bs.exploreKinds(true) ?: ""
         }.getOrNull() ?: bs.exploreUrl
 
         if (kindUrls.isBlank()) { onError("书源发现规则解析失败"); return }
