@@ -145,17 +145,18 @@ open class SourceController:BaseController() {
                 if (!bs.bookSourceUrl.isNullOrBlank() && bs.bookSourceUrl.length > 5) {
                     AutoCrawl.startCrawl(bs.toString(), user.id ?: "",
                         onBook = { searchBook, bookInfo ->
-                            runCatching {
+                            try {
                                 val exists = booklistMapper.getbook(user.id ?: "", searchBook.bookUrl)
-                                if (exists != null) return@startCrawl
-                                val bl = Booklist.tobooklist(searchBook, user.id ?: "")
+                                if (exists != null) return@startCrawl false
+                                val bl = web.model.Booklist.tobooklist(searchBook, user.id ?: "")
                                 if (bookInfo != null) {
                                     bl.bookto(bookInfo, canchangeindex = true)
                                     bl.origin = bs.bookSourceUrl
                                     bl.originName = bs.bookSourceName
                                 }
                                 booklistMapper.insert(bl)
-                            }
+                                true
+                            } catch (_: Exception) { false }
                         },
                         onComplete = { total ->
                             web.notification.Book.sendNotification(user)
@@ -237,25 +238,28 @@ open class SourceController:BaseController() {
                 insert += ins
                 update += ups
             }
-        if (insert > 0 && !booksource.bookSourceUrl.isNullOrBlank() && booksource.bookSourceUrl.length > 5) {
-            AutoCrawl.startCrawl(booksource.toString(), user.id ?: "",
-                onBook = { searchBook, bookInfo ->
-                    runCatching {
-                        val exists = booklistMapper.getbook(user.id ?: "", searchBook.bookUrl)
-                        if (exists != null) return@startCrawl
-                        val bl = Booklist.tobooklist(searchBook, user.id ?: "")
-                        if (bookInfo != null) {
-                            bl.bookto(bookInfo, canchangeindex = true)
-                            bl.origin = booksource.bookSourceUrl
-                            bl.originName = booksource.bookSourceName
-                        }
-                        booklistMapper.insert(bl)
+        if (insert > 0 && booksource.bookSourceUrl.length > 5) {
+            try {
+                AutoCrawl.startCrawl(booksource.toString(), user.id ?: "",
+                    onBook = { searchBook, bookInfo ->
+                        try {
+                            val exists = booklistMapper.getbook(user.id ?: "", searchBook.bookUrl)
+                            if (exists != null) return@startCrawl false
+                            val bl = web.model.Booklist.tobooklist(searchBook, user.id ?: "")
+                            if (bookInfo != null) {
+                                bl.bookto(bookInfo, canchangeindex = true)
+                                bl.origin = booksource.bookSourceUrl
+                                bl.originName = booksource.bookSourceName
+                            }
+                            booklistMapper.insert(bl)
+                            true
+                        } catch (_: Exception) { false }
+                    },
+                    onComplete = { total ->
+                        web.notification.Book.sendNotification(user)
                     }
-                },
-                onComplete = { total ->
-                    web.notification.Book.sendNotification(user)
-                }
-            )
+                )
+            } catch (_: Exception) {}
         }
         web.notification.Source.sendNotification(user.let { if (user.source == 2) it else null })
         JsonResponse(true,"新增${insert}条书源，更新${update}条书源")
