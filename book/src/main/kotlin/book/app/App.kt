@@ -1,0 +1,117 @@
+package book.app
+
+import book.util.http.JsonpResponse
+import book.util.http.StrResponse
+import book.webBook.analyzeRule.InfoMap
+import java.util.WeakHashMap
+
+object App  {
+    val exploreInfoMapList = WeakHashMap<String, InfoMap>()
+
+
+    var startBrowserAwait =fun  (urlStr: String,title: String,tocken:String,header:String,name: String): StrResponse {
+        return StrResponse(urlStr,"")
+    }
+    var showBrowser =fun  (urlStr: String,html: String,preloadJs:String,header:String, tocken:String) {
+
+    }
+    var startBrowserdp =fun  (urlStr: String,title: String,tocken:String,header:String) {
+
+    }
+    var webview =fun  (html: String?, url: String?, js: String?,tocken:String,header:String,urlregex:String,overrideUrlRegex:String):StrResponse{
+        return StrResponse(url?:"", "")
+    }
+    var webviewbody =fun  (html: String?, url: String?, js: String?,tocken:String,header:String,body:String,urlregex:String,overrideUrlRegex:String):StrResponse{
+        return StrResponse(url?:"", "")
+    }
+    var toast =fun  (str: String,tocken:String){
+
+    }
+
+    var longToast=fun  (str: String,tocken:String){
+
+    }
+
+    var getVerificationCode =fun  (imgurl:String,tocken:String):String{
+        return ""
+    }
+
+    var getVerificationCodeusePhone =fun  (imgurl:String, header:String,tocken:String):String{
+        return ""
+    }
+
+    var getWebViewUA =fun  (tocken:String):String{
+        return ""
+    }
+    var log =fun  (str: String,tocken:String){
+
+    }
+    var get =fun  (url: String?, header:String,tocken:String,move:Boolean):JsonpResponse{
+        return JsonpResponse().also {
+            it.url = url?:""
+            it.method = "get"
+            it.statusCode = 403
+        }
+    }
+
+    var post =fun  (url: String?,body:String, header:String,tocken:String,move:Boolean):JsonpResponse{
+        return JsonpResponse().also {
+            it.url = url?:""
+            it.method = "get"
+            it.statusCode = 403
+        }
+    }
+
+    var head =fun  (url: String?, header:String,tocken:String,move:Boolean):JsonpResponse{
+        return JsonpResponse().also {
+            it.url = url?:""
+            it.method = "head"
+            it.statusCode = 403
+        }
+    }
+
+    var noticy = fun  (str: String, md5 : String, tocken:String){
+
+    }
+
+    var openurl= fun (url :String, mimeType:String?,tocken:String){
+
+    }
+
+    var searchBook= fun (key :String, sourceurl:String?,tocken:String){
+
+    }
+
+    var addBook= fun (bookurl:String?,tocken:String){
+
+    }
+
+    var reLoginView= fun (deltaUp: Boolean ,tocken:String){
+
+    }
+
+    var upLoginData= fun (data: Map<String, Any?>? ,tocken:String){
+
+    }
+
+    var copyText= fun (text :String, tocken:String){
+
+    }
+
+    var refreshBookInfo= fun (bookSourceUrl :String, tocken:String){
+
+    }
+
+    var refreshBookToc= fun (bookSourceUrl :String, tocken:String){
+
+    }
+
+    var refreshContent= fun (bookSourceUrl :String, tocken:String){
+
+    }
+
+    var refreshExplore= fun (bookSourceUrl :String, tocken:String){
+
+    }
+}
+

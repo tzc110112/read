@@ -1,0 +1,39 @@
+solon.app:
+  name: read
+solon.logging:
+  appender:
+    console:
+      pattern: "%d{yyyy-MM-dd HH:mm:ss} %-5level #${PID:-} %white(---) %-45(%cyan(%.32logger{30}:%L)) %msg%n"
+    file:
+      maxFileSize: "500 MB"
+  logger:
+    root:
+      level: info
+mybatis.db:
+  typeAliases:    #支持包名 或 类名 //支持 ** 和 *
+    - "web.model"
+  mappers:        #支持包名 或 类名 或 xml（.xml结尾）//支持 ** 和 *
+    - "web.mapper"
+  configuration: #扩展配置（要与 MybatisConfiguration 类的属性一一对应）
+    cacheEnabled: true
+mybatis-plus:
+  configuration:
+    cache-enabled: true  # 开启二级缓存
+cache:
+  driverType: "local"
+  defSeconds: 600
+solon.config.add: "./conf.yml"
+solon.serialization.json:
+  dateAsFormat: 'yyyy-MM-dd HH:mm:ss' #配置日期格式（默认输出为时间戳，对 Date、LocalDateTime 有效）
+  dateAsTimeZone: 'GMT+8' #配置时区
+  dateAsTicks: false #将date转为毫秒数（和 dateAsFormat 二选一）
+server.request:
+  maxBodySize: 50mb
+  maxFileSize: 50mb
+server.http:
+  coreThreads: x5
+solon.mime:
+  vue: "text/html"
+  map: "application/json"
+  log: "text/plain"
+  wasm: "application/wasm"

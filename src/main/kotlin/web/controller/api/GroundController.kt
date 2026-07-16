@@ -1,0 +1,120 @@
+package web.controller.api
+
+import book.appCtx
+import book.util.FileUtils
+import org.apache.ibatis.solon.annotation.Db
+import org.noear.solon.annotation.Body
+import org.noear.solon.annotation.Controller
+import org.noear.solon.annotation.Inject
+import org.noear.solon.annotation.Mapping
+import org.noear.solon.core.handle.UploadedFile
+import org.noear.solon.core.util.DataThrowable
+import org.noear.solon.data.annotation.Cache
+import org.noear.solon.data.cache.CacheService
+import org.noear.solon.web.cors.annotation.CrossOrigin
+import web.mapper.BackGroundMapper
+import web.model.BackGround
+import web.model.ReplaceRule
+import web.notification.Ground
+import web.response.JsonResponse
+import web.response.NOT_BANK
+import web.util.hash.Md5
+import java.net.URLDecoder
+
+
+@Controller
+@Mapping(routepath)
+@CrossOrigin(origins = "*")
+open class GroundController:BaseController() {
+
+    private val groundDir = FileUtils.createFolderIfNotExist(appCtx.externalFiles, "assets","ground")
+
+    @Db("db")
+    @Inject
+    lateinit var backGroundMapper: BackGroundMapper
+
+    @Inject
+    lateinit var cacheService: CacheService
+
+
+    @Mapping("/getallgroundPage")
+    fun getallgroundPage(accessToken:String?)=run{
+        val user = getuserbytocken(accessToken)
+        if (user.groundmd5.isNullOrBlank()){
+            user.groundmd5=Md5(System.currentTimeMillis().toString())
+            usersMapper.updategroundmd5(user.id!!, user.groundmd5!!)
+        }
+        var list:MutableList<BackGround> = mutableListOf()
+        var page = 1
+        backGroundMapper.getlistbyuserid(user.id!!).forEach {
+            if(list.size >= 50){
+                cacheService.store("getallgroundNew:${accessToken}${user.groundmd5}${page}",JsonResponse(true).Data(list),cachetime)
+                page++
+                list=mutableListOf()
+            }
+            list.add(it)
+        }
+        cacheService.store("getallgroundNew:${accessToken}${user.groundmd5}${page}",JsonResponse(true).Data(list),cachetime)
+        JsonResponse(true).Data(mapOf("page" to page, "md5" to user.groundmd5))
+    }
+
+    @Cache(key = "getallgroundNew:\${accessToken}\${md5}\${page}",  seconds = 60)
+    @Mapping("/getallgroundNew")
+    open fun getBookshelf(accessToken: String?,md5: String?,page: String) = run {
+        JsonResponse(false)
+    }
+
+    @Mapping("/addground")
+    fun addground(accessToken:String?, @Body ground: BackGround)=run{
+        val user=getuserbytocken(accessToken)
+        var needup=false
+        if(ground.name == null || ground.name == 0.toLong())  throw DataThrowable().data(JsonResponse(false, NOT_BANK))
+        val newground=ground.create(user.id!!,ground.name!!)
+        backGroundMapper.insertOrUpdate(newground)
+        if(!ground.backgroundimage.isNullOrBlank()){
+            if(!ground.backgroundimage!!.startsWith("assets")){
+                if(!FileUtils.exists(groundDir,ground.backgroundimage!!)){
+                    needup=true
+                }
+            }
+        }
+        Ground.sendNotification(user)
+        JsonResponse(true,"$needup")
+    }
+
+    @Mapping("/delground")
+    fun delground(accessToken:String?, @Body ground: BackGround)=run{
+        val user=getuserbytocken(accessToken)
+        if(ground.name == null || ground.name == 0.toLong())  throw DataThrowable().data(JsonResponse(false, NOT_BANK))
+        val newground=ground.create(user.id!!,ground.name!!)
+        backGroundMapper.deleteById(newground)
+        Ground.sendNotification(user)
+        JsonResponse(true)
+    }
+
+    @Mapping("/getallground")
+    fun getallground(accessToken:String?)=run{
+        val user=getuserbytocken(accessToken)
+        JsonResponse(true).Data(backGroundMapper.getlistbyuserid(user.id!!))
+    }
+
+    @Mapping("/importground")
+    open fun importground(accessToken:String?, file: UploadedFile?)=run{
+        if(file == null) throw DataThrowable().data(JsonResponse(false, NOT_BANK))
+        if (file.isEmpty) {
+            throw DataThrowable().data(JsonResponse(false, NOT_BANK))
+        }
+        var f1=file.name
+        kotlin.runCatching {
+            f1= URLDecoder.decode( f1, "UTF-8" )
+        }
+        val unifiedPath = f1.replace("\\", "/")
+        f1= unifiedPath.substringAfterLast('/')
+        getuserbytocken(accessToken)
+        val cb=file.contentAsBytes
+        val valueFile = FileUtils.createFileIfNotExist(groundDir,f1)
+        valueFile.writeBytes(cb)
+        JsonResponse(true)
+    }
+
+}

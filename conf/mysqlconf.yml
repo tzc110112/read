@@ -1,0 +1,43 @@
+solon.dataSources:
+  db:
+    class: "com.zaxxer.hikari.HikariDataSource"
+    driverClassName: com.mysql.cj.jdbc.Driver
+    jdbcUrl: jdbc:mysql://127.0.0.1:3306/数据库名?characterEncoding=UTF-8&allowMultiQueries=true&serverTimezone=UTC
+    username: 用户
+    password: 密码
+admin:
+  gonggao: ""  #填写公告后 app 每次开启时都会弹出
+  username: "admin"
+  password: "adminadmin"
+  update: false #是否开启定时更新最新章节的任务，共享后端请勿开启
+  code: "" #需要填写app管理后台生成的密钥
+user:
+  allowchange: false  #是否允许自助修改权限 允许 true 不允许 false
+  allowuptxt: false  #是否允许上传txt 允许 true 不允许 false
+  allowcache: false  #是否允许添加缓存 允许 true 不允许 false
+  allowimg: false  #是否使用图片解密 允许 true 不允许 false
+  allowcheck: false  #是否允许检验书源 允许 true 不允许 false
+  source: 0  #0为不允许修改书源，1为允许修改后台书源，2独立书源
+  maxsource: 0  # 最大书源数量 0为不限制
+  timeout: 0 #10分钟内除发多少次timeout禁用书源 0 为不限制
+  proxypng: false  #是否代理封面
+smtp:
+  host:  #smtp邮箱host
+  protocols: TLSv1.2 #通讯协议
+  port:  #端口
+  account:  #邮箱账号
+  password:  #邮箱密码，部分邮箱是安全码
+  personal:  #发送人的昵称
+  codesubject: 验证码 #验证码邮件的主题
+  codetext: 您的验证码是$code,当前验证码十分钟有效请尽快使用  #验证码邮件的内容，必须有$code，发送邮件时会把$code替换成验证码
+default:
+  tts: #默认tts链接
+  rule: #默认净化链接
+server.http:
+  coreThreads: x5 #默认线程
+  maxThreads: x10  #最大线程
+# 如果不想日志输出到文件请把下面配置去除注解
+#solon.logging:
+#  appender:
+#    file:
+#      enable: false

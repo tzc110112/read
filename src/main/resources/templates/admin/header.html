@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>管理</title>
+  <style>
+    /* 移动端适配样式 */
+    @media screen and (max-width: 768px) {
+      .layui-nav {
+        padding: 0 5px;
+      }
+      
+      .layui-nav-item {
+        margin: 0;
+      }
+      
+      .layui-nav-item a {
+        padding: 0 10px !important;
+        font-size: 14px;
+        height: 50px;
+        line-height: 50px;
+      }
+      
+      .layui-nav-item:last-child {
+        margin-left: auto;
+      }
+      
+      /* 菜单紧凑显示 */
+      .layui-nav li {
+        margin: 0;
+      }
+    }
+  </style>
+</head>
+<link rel="stylesheet" href="/static/layui/css/layui.css">
+
+<body style="width: 100%;height: 100%;">
+<style>
+  .layui-input-block {
+    margin-left: 0px;
+    min-height: 36px;
+  }
+</style>
+
+<header  >
+  <ul class="layui-nav">
+
+    <li class="layui-nav-item <#if index??>${index}</#if>" ><a href="/admin">用户</a></li>
+    <li class="layui-nav-item <#if book??>${book}</#if>" ><a href="/admin/book">书源</a></li>
+    <li class="layui-nav-item <#if rss??>${rss}</#if>" ><a href="/admin/rss">订阅源</a></li>
+    <li class="layui-nav-item <#if code??>${code}</#if>" ><a href="/admin/code">邀请码</a></li>
+    <li class="layui-nav-item" ><a href="http://app.qread.xyz/admin" target="_blank">app管理</a></li>
+    <li class="layui-nav-item" style="float: right;"><a href="/admin/logout">退出</a></li>
+  </ul>
+</header>
