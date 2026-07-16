@@ -16,6 +16,7 @@ import web.response.*
 import web.util.page.PageByAjax
 import java.io.EOFException
 import java.util.*
+import book.webBook.AutoCrawl
 import book.model.BookSource as Booksource
 
 
@@ -71,6 +72,22 @@ class BookSourceController {
         }catch (e:Exception){
             e.printStackTrace()
             throw DataThrowable().data(JsonResponse(false, DO_ERROR))
+        }
+        if (insert > 0) {
+            try {
+                val allSources = bookSourceMapper.getallBookSourcelist() ?: listOf()
+                val newest = allSources.sortedByDescending { it.createtime }.take(insert)
+                newest.forEach { src ->
+                    val bs = Booksource.fromJson(src.json ?: "").getOrNull() ?: return@forEach
+                    book.webBook.AutoCrawl.startCrawl(bs.toString(), "admin",
+                        onBook = { searchBook, bookInfo -> false },
+                        onComplete = { total ->
+                            org.slf4j.LoggerFactory.getLogger(BookSourceController::class.java)
+                                .info("书源[${bs.bookSourceName}]自动采集完成: $total 本")
+                        }
+                    )
+                }
+            } catch (_: Exception) {}
         }
         Source.sendNotification()
         JsonResponse(true,"新增${insert}条书源，更新${update}条书源")
