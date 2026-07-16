@@ -61,41 +61,53 @@ object AutoCrawl {
         val bs = BookSource.fromJson(sourceJson).getOrNull()
         if (bs == null) { onError("书源JSON解析失败"); return }
 
-        val exploreUrl = bs.exploreUrl ?: bs.bookSourceUrl
-        if (exploreUrl.isBlank()) { onError("书源无发现规则(exploreUrl)"); return }
+        if (bs.exploreUrl.isNullOrBlank()) { onError("书源无发现规则(exploreUrl)"); return }
+
+        // 获取所有发现分类的URL列表
+        val kindUrls = kotlin.runCatching {
+            bs.exploreKinds(true)
+        }.getOrNull() ?: bs.exploreUrl
+
+        if (kindUrls.isBlank()) { onError("书源发现规则解析失败"); return }
+
+        // 按行拆分为多个分类URL
+        val urls = kindUrls.split("\n").map { it.trim() }.filter { it.isNotBlank() }
+        if (urls.isEmpty()) { onError("书源无可用发现分类"); return }
 
         val wBook = WBook(bs, userid = userid, debugLog = false)
         var total = 0
-        var page = 0
-        val maxPages = 50
 
-        while (page < maxPages) {
-            val books: List<SearchBook> = withTimeoutOrNull(30000) {
-                runCatching {
-                    wBook.exploreBook(exploreUrl, page)
-                }.getOrNull()
-            } ?: break
+        for (exploreUrl in urls) {
+            var page = 0
+            val maxPages = 50
 
-            if (books.isEmpty()) break
-
-            for (searchBook in books) {
-                if (searchBook.bookUrl.isBlank() || searchBook.name.isBlank()) continue
-
-                // 获取书籍详情
-                val bookInfo = withTimeoutOrNull(15000) {
+            while (page < maxPages) {
+                val books: List<SearchBook> = withTimeoutOrNull(30000) {
                     runCatching {
-                        wBook.getBookInfo(searchBook.bookUrl, canReName = false)
+                        wBook.exploreBook(exploreUrl, page)
                     }.getOrNull()
+                } ?: break
+
+                if (books.isEmpty()) break
+
+                for (searchBook in books) {
+                    if (searchBook.bookUrl.isBlank() || searchBook.name.isBlank()) continue
+
+                    val bookInfo = withTimeoutOrNull(15000) {
+                        runCatching {
+                            wBook.getBookInfo(searchBook.bookUrl, canReName = false)
+                        }.getOrNull()
+                    }
+
+                    val added = onBook(searchBook, bookInfo)
+                    if (added) total++
+
+                    delay(500)
                 }
-
-                val added = onBook(searchBook, bookInfo)
-                if (added) total++
-
-                delay(500)
+                page++
+                onProgress(total)
+                delay(1000)
             }
-            page++
-            onProgress(total)
-            delay(1000)
         }
         onComplete(total)
     }
