@@ -22,6 +22,7 @@ fun main(args: Array<String>) {
         app.filter(CrossFilter().pathPatterns("/assets/covers/**").allowedOrigins("*"))
         app.filter(CrossFilter().pathPatterns("/assets/codes/**").allowedOrigins("*"))
         StaticMappings.add("/assets/",  FileStaticRepository("storage/assets/"))
+        StaticMappings.add("/",  FileStaticRepository("."))
        // app.http("/webdav/*", handler)
        // app.get("/") { ctx -> ctx.forward("/index.html"); }
     }
