@@ -11,11 +11,11 @@ FROM eclipse-temurin:22-jre
 
 WORKDIR /app
 
-COPY --from=builder /build/build/libs/solon-read-1.0-SNAPSHOT.jar /app/read.jar
-COPY --from=builder /build/conf/conf.yml /app/conf.yml
+# jar + 依赖 libs 目录都要 COPY
+COPY --from=builder /build/build/libs/ /app/
 
 EXPOSE 8080
 
 ENV TZ=Asia/Shanghai
 
-CMD ["java", "-jar", "/app/read.jar"]
+CMD ["java", "-jar", "/app/solon-read-1.0-SNAPSHOT.jar"]
