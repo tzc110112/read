@@ -11,7 +11,7 @@ FROM eclipse-temurin:22-jre
 
 WORKDIR /app
 
-COPY --from=builder /build/build/libs/solon-read-*.jar /app/read.jar
+COPY --from=builder /build/build/libs/solon-read-1.0-SNAPSHOT.jar /app/read.jar
 COPY --from=builder /build/conf/conf.yml /app/conf.yml
 
 EXPOSE 8080
