@@ -4,8 +4,6 @@ libs/
 .idea/
 *.iml
 .DS_Store
-book/src/lib/*.jar
-gradle/wrapper/gradle-wrapper.jar
 png/
 src/main/resources/static/
 tmp/
