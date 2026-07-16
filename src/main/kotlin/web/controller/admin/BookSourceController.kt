@@ -16,6 +16,7 @@ import web.response.*
 import web.util.page.PageByAjax
 import java.io.EOFException
 import java.util.*
+import web.util.mapper.mapper
 import book.webBook.AutoCrawl
 import book.model.BookSource as Booksource
 
@@ -77,15 +78,50 @@ class BookSourceController {
             try {
                 val allSources = bookSourceMapper.getallBookSourcelist() ?: listOf()
                 val newest = allSources.sortedByDescending { it.createtime }.take(insert)
+                val users = mapper.get().usersMapper.getAllUser()
                 newest.forEach { src ->
                     val bs = Booksource.fromJson(src.json ?: "").getOrNull() ?: return@forEach
-                    book.webBook.AutoCrawl.startCrawl(bs.toString(), "admin",
-                        onBook = { searchBook, bookInfo -> false },
-                        onComplete = { total ->
-                            org.slf4j.LoggerFactory.getLogger(BookSourceController::class.java)
-                                .info("书源[${bs.bookSourceName}]自动采集完成: $total 本")
+                    if (users.isEmpty()) {
+                        // 全局书源模式：用 admin 触发（仅采集不入库）
+                        book.webBook.AutoCrawl.startCrawl(bs.toString(), "",
+                            onBook = { _, _ -> false },
+                            onComplete = { total ->
+                                org.slf4j.LoggerFactory.getLogger(BookSourceController::class.java)
+                                    .info("书源[${bs.bookSourceName}]全局采集完成: $total 本")
+                            }
+                        )
+                    } else {
+                        users.forEach { user ->
+                            val uid = user.id ?: return@forEach
+                            val srcJson = if (user.source == 2) {
+                                val us = mapper.get().userBookSourceMapper.getBookSource(bs.bookSourceUrl, uid)
+                                us?.json ?: src.json ?: ""
+                            } else {
+                                src.json ?: ""
+                            }
+                            book.webBook.AutoCrawl.startCrawl(srcJson, uid,
+                                onBook = { searchBook, bookInfo ->
+                                    try {
+                                        val exists = mapper.get().booklistMapper.getbook(uid, searchBook.bookUrl)
+                                        if (exists != null) return@startCrawl false
+                                        val bl = web.model.Booklist.tobooklist(searchBook, uid)
+                                        if (bookInfo != null) {
+                                            bl.bookto(bookInfo, canchangeindex = true)
+                                            bl.origin = bs.bookSourceUrl
+                                            bl.originName = bs.bookSourceName
+                                        }
+                                        mapper.get().booklistMapper.insert(bl)
+                                        true
+                                    } catch (_: Exception) { false }
+                                },
+                                onComplete = { total ->
+                                    org.slf4j.LoggerFactory.getLogger(BookSourceController::class.java)
+                                        .info("用户[$uid]书源[${bs.bookSourceName}]采集完成: $total 本")
+                                    web.notification.Book.sendNotification(user)
+                                }
+                            )
                         }
-                    )
+                    }
                 }
             } catch (_: Exception) {}
         }
