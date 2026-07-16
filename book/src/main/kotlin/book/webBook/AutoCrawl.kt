@@ -68,10 +68,10 @@ object AutoCrawl {
             bs.exploreKinds(true) ?: ""
         }.getOrNull() ?: bs.exploreUrl
 
-        if (kindUrls.isBlank()) { onError("书源发现规则解析失败"); return }
+        if (kindUrls.isNullOrBlank()) { onError("书源发现规则解析失败"); return }
 
         // 按行拆分为多个分类URL
-        val urls = kindUrls.split("\n").map { it.trim() }.filter { it.isNotBlank() }
+        val urls = kindUrls!!.split("\n").map { it.trim() }.filter { it.isNotBlank() }
         if (urls.isEmpty()) { onError("书源无可用发现分类"); return }
 
         val wBook = WBook(bs, userid = userid, debugLog = false)
