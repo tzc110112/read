@@ -3,26 +3,17 @@ package book.webBook
 import book.model.Book
 import book.model.BookSource
 import book.model.SearchBook
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.ConcurrentHashMap
 
-/**
- * 自动采集工具——无任何数据库依赖，只输出结果
- */
 object AutoCrawl {
-
     private val runningTasks = ConcurrentHashMap<String, Boolean>()
+    private val gson = Gson()
 
-    /**
-     * 对书源执行全量采集，回调方式处理每一本书
-     *
-     * @param sourceJson  书源 JSON
-     * @param userid      用户 ID
-     * @param onBook      回调：搜索到的书籍信息，返回 true=加入书架/false=跳过(已存在)
-     * @param onProgress  回调：采集进度 (已采集数, 总字节数)
-     */
     fun startCrawl(
         sourceJson: String,
         userid: String,
@@ -31,16 +22,12 @@ object AutoCrawl {
         onComplete: (total: Int) -> Unit = {},
         onError: (String) -> Unit = {},
     ) {
-        val taskKey = "$userid::${BookSource.fromJson(sourceJson).getOrNull()?.bookSourceUrl ?: sourceJson.hashCode()}"
-        if (runningTasks.putIfAbsent(taskKey, true) != null) return
-
+        val key = "$userid::${BookSource.fromJson(sourceJson).getOrNull()?.bookSourceUrl ?: sourceJson.hashCode()}"
+        if (runningTasks.putIfAbsent(key, true) != null) return
         Thread {
             runBlocking {
-                try {
-                    doCrawl(sourceJson, userid, onBook, onProgress, onComplete, onError)
-                } finally {
-                    runningTasks.remove(taskKey)
-                }
+                try { doCrawl(sourceJson, userid, onBook, onProgress, onComplete, onError)
+                } finally { runningTasks.remove(key) }
             }
         }.start()
     }
@@ -51,8 +38,7 @@ object AutoCrawl {
     }
 
     private suspend fun doCrawl(
-        sourceJson: String,
-        userid: String,
+        sourceJson: String, userid: String,
         onBook: (SearchBook, Book?) -> Boolean,
         onProgress: (done: Int) -> Unit,
         onComplete: (total: Int) -> Unit,
@@ -60,48 +46,29 @@ object AutoCrawl {
     ) {
         val bs = BookSource.fromJson(sourceJson).getOrNull()
         if (bs == null) { onError("书源JSON解析失败"); return }
+        if (bs.exploreUrl.isNullOrBlank()) { onError("书源无发现规则"); return }
 
-        if (bs.exploreUrl.isNullOrBlank()) { onError("书源无发现规则(exploreUrl)"); return }
+        // 获取分类URL列表
+        val exploreUrls = resolveExploreUrls(bs)
 
-        // 获取所有发现分类的URL列表
-        val kindUrls = kotlin.runCatching {
-            bs.exploreKinds(true) ?: ""
-        }.getOrNull() ?: bs.exploreUrl
-
-        if (kindUrls.isNullOrBlank()) { onError("书源发现规则解析失败"); return }
-
-        // 按行拆分为多个分类URL
-        val urls = kindUrls!!.split("\n").map { it.trim() }.filter { it.isNotBlank() }
-        if (urls.isEmpty()) { onError("书源无可用发现分类"); return }
+        if (exploreUrls.isEmpty()) { onError("书源无可用发现分类"); return }
 
         val wBook = WBook(bs, userid = userid, debugLog = false)
         var total = 0
 
-        for (exploreUrl in urls) {
+        for (exploreUrl in exploreUrls) {
             var page = 0
-            val maxPages = 50
-
-            while (page < maxPages) {
-                val books: List<SearchBook> = withTimeoutOrNull(30000) {
-                    runCatching {
-                        wBook.exploreBook(exploreUrl, page)
-                    }.getOrNull()
+            while (page < 50) {
+                val books = withTimeoutOrNull(30000) {
+                    runCatching { wBook.exploreBook(exploreUrl, page) }.getOrNull()
                 } ?: break
-
                 if (books.isEmpty()) break
-
-                for (searchBook in books) {
-                    if (searchBook.bookUrl.isBlank() || searchBook.name.isBlank()) continue
-
-                    val bookInfo = withTimeoutOrNull(15000) {
-                        runCatching {
-                            wBook.getBookInfo(searchBook.bookUrl, canReName = false)
-                        }.getOrNull()
+                for (sb in books) {
+                    if (sb.bookUrl.isBlank() || sb.name.isBlank()) continue
+                    val info = withTimeoutOrNull(15000) {
+                        runCatching { wBook.getBookInfo(sb.bookUrl, canReName = false) }.getOrNull()
                     }
-
-                    val added = onBook(searchBook, bookInfo)
-                    if (added) total++
-
+                    if (onBook(sb, info)) total++
                     delay(500)
                 }
                 page++
@@ -110,5 +77,40 @@ object AutoCrawl {
             }
         }
         onComplete(total)
+    }
+
+    /** 解析书源的所有发现分类URL */
+    private fun resolveExploreUrls(bs: BookSource): List<String> {
+        val kindRaw = kotlin.runCatching { bs.exploreKinds(true) }.getOrNull()?.trim() ?: bs.exploreUrl?.trim() ?: return emptyList()
+
+        // 尝试 JSON 数组解析 [{"title":"xxx","url":"..."}, ...]
+        if (kindRaw.startsWith("[")) {
+            return try {
+                val type = object : TypeToken<List<Map<String, String>>>() {}.type
+                val list: List<Map<String, String>> = gson.fromJson(kindRaw, type)
+                list.mapNotNull { m ->
+                    val url = m["url"] ?: return@mapNotNull null
+                    if (url.startsWith("http")) url else bs.bookSourceUrl.trimEnd('/') + "/" + url.trimStart('/')
+                }
+            } catch (_: Exception) {
+                // JSON解析失败，直接用 exploreUrl
+                listOf(bs.exploreUrl ?: bs.bookSourceUrl)
+            }
+        }
+
+        // "名称::url" 格式
+        if (kindRaw.contains("::")) {
+            val urls = kindRaw.split("\n").mapNotNull { line ->
+                val parts = line.trim().split("::")
+                if (parts.size >= 2) {
+                    val url = parts[1]
+                    if (url.startsWith("http")) url else bs.bookSourceUrl.trimEnd('/') + "/" + url.trimStart('/')
+                } else null
+            }
+            if (urls.isNotEmpty()) return urls
+        }
+
+        // 普通文本，按行作为URL
+        return listOf(bs.exploreUrl ?: bs.bookSourceUrl)
     }
 }
