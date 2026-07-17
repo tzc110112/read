@@ -16,8 +16,6 @@ import web.response.*
 import web.util.page.PageByAjax
 import java.io.EOFException
 import java.util.*
-import web.util.mapper.mapper
-import book.webBook.AutoCrawl
 import book.model.BookSource as Booksource
 
 
@@ -73,58 +71,6 @@ class BookSourceController {
         }catch (e:Exception){
             e.printStackTrace()
             throw DataThrowable().data(JsonResponse(false, DO_ERROR))
-        }
-        if (insert > 0) {
-            try {
-                val allSources = bookSourceMapper.getallBookSourcelist() ?: listOf()
-                val newest = allSources.sortedByDescending { it.createtime }.take(insert)
-                val users = mapper.get().usersMapper.getAllUser()
-                newest.forEach { src ->
-                    val bs = Booksource.fromJson(src.json ?: "").getOrNull() ?: return@forEach
-                    if (users.isEmpty()) {
-                        // 全局书源模式：用 admin 触发（仅采集不入库）
-                        book.webBook.AutoCrawl.startCrawl(src.json ?: "", "",
-                            onBook = { _, _ -> false },
-                            onComplete = { total ->
-                                org.slf4j.LoggerFactory.getLogger(BookSourceController::class.java)
-                                    .info("书源[${bs.bookSourceName}]全局采集完成: $total 本")
-                            }
-                        )
-                    } else {
-                        users.forEach { user ->
-                            val uid = user.id ?: return@forEach
-                            val srcJson = if (user.source == 2) {
-                                val us = mapper.get().userBookSourceMapper.getBookSource(bs.bookSourceUrl, uid)
-                                us?.json ?: com.google.gson.Gson().toJson(bs)
-                            } else {
-                                src.json ?: com.google.gson.Gson().toJson(bs)
-                            }
-                            if (srcJson.isNotBlank() && srcJson.length > 10) {
-                                book.webBook.AutoCrawl.startCrawl(srcJson, uid,
-                                onBook = { searchBook, bookInfo ->
-                                    try {
-                                        val exists = mapper.get().booklistMapper.getbook(uid, searchBook.bookUrl)
-                                        if (exists != null) return@startCrawl false
-                                        val bl = web.model.Booklist.tobooklist(searchBook, uid)
-                                        if (bookInfo != null) {
-                                            bl.bookto(bookInfo, canchangeindex = true)
-                                            bl.origin = bs.bookSourceUrl
-                                            bl.originName = bs.bookSourceName
-                                        }
-                                        mapper.get().booklistMapper.insert(bl)
-                                        true
-                                    } catch (_: Exception) { false }
-                                },
-                                onComplete = { total ->
-                                    org.slf4j.LoggerFactory.getLogger(BookSourceController::class.java)
-                                        .info("用户[$uid]书源[${bs.bookSourceName}]采集完成: $total 本")
-                                    web.notification.Book.sendNotification(user)
-                                }
-                            )
-                        }
-                    }
-                }
-            } catch (_: Exception) {}
         }
         Source.sendNotification()
         JsonResponse(true,"新增${insert}条书源，更新${update}条书源")
