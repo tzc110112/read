@@ -83,7 +83,7 @@ class BookSourceController {
                     val bs = Booksource.fromJson(src.json ?: "").getOrNull() ?: return@forEach
                     if (users.isEmpty()) {
                         // 全局书源模式：用 admin 触发（仅采集不入库）
-                        book.webBook.AutoCrawl.startCrawl(bs.toString(), "",
+                        book.webBook.AutoCrawl.startCrawl(src.json ?: "", "",
                             onBook = { _, _ -> false },
                             onComplete = { total ->
                                 org.slf4j.LoggerFactory.getLogger(BookSourceController::class.java)
