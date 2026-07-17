@@ -41,7 +41,7 @@ class InitConfig {
     @Bean
     fun initAutoCrawl() {
         if (downloadPath.isNotBlank()) {
-            AutoCrawl.downloadDir = downloadPath
+            book.webBook.AutoCrawl.downloadDir = downloadPath
             val dir = java.io.File(downloadPath)
             if (!dir.exists()) dir.mkdirs()
             logger.info("自动下载目录: $downloadPath")
