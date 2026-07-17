@@ -1,6 +1,7 @@
 package book.webBook
 
 import book.model.Book
+import book.model.BookChapter
 import book.model.BookSource
 import book.model.SearchBook
 import com.google.gson.Gson
@@ -8,11 +9,15 @@ import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
+import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 
 object AutoCrawl {
     private val runningTasks = ConcurrentHashMap<String, Boolean>()
     private val gson = Gson()
+
+    /** 下载目录，启动前设置 */
+    var downloadDir: String = ""
 
     fun startCrawl(
         sourceJson: String,
@@ -48,9 +53,7 @@ object AutoCrawl {
         if (bs == null) { onError("书源JSON解析失败"); return }
         if (bs.exploreUrl.isNullOrBlank()) { onError("书源无发现规则"); return }
 
-        // 获取分类URL列表
         val exploreUrls = resolveExploreUrls(bs)
-
         if (exploreUrls.isEmpty()) { onError("书源无可用发现分类"); return }
 
         val wBook = WBook(bs, userid = userid, debugLog = false)
@@ -65,10 +68,17 @@ object AutoCrawl {
                 if (books.isEmpty()) break
                 for (sb in books) {
                     if (sb.bookUrl.isBlank() || sb.name.isBlank()) continue
-                    val info = withTimeoutOrNull(15000) {
+                    val bookInfo = withTimeoutOrNull(15000) {
                         runCatching { wBook.getBookInfo(sb.bookUrl, canReName = false) }.getOrNull()
                     }
-                    if (onBook(sb, info)) total++
+                    val added = onBook(sb, bookInfo)
+                    if (added) {
+                        total++
+                        // 下载到本地文件
+                        if (downloadDir.isNotBlank() && bookInfo != null) {
+                            downloadBook(wBook, sb, bookInfo)
+                        }
+                    }
                     delay(500)
                 }
                 page++
@@ -79,11 +89,52 @@ object AutoCrawl {
         onComplete(total)
     }
 
-    /** 解析书源的所有发现分类URL */
+    /** 下载书籍所有章节到本地文件 */
+    private suspend fun downloadBook(wBook: WBook, sb: SearchBook, bookInfo: Book) {
+        try {
+            val dir = File(downloadDir, sanitizeFileName(sb.name))
+            dir.mkdirs()
+
+            // 获取章节列表
+            val chapters = withTimeoutOrNull(30000) {
+                runCatching { wBook.getChapterList(bookInfo) }.getOrNull()
+            } ?: return
+
+            // 逐章下载
+            val contentFile = File(dir, "${sanitizeFileName(sb.name)}.txt")
+            if (contentFile.exists()) return // 已下载过
+
+            contentFile.bufferedWriter().use { writer ->
+                writer.write("书名：${sb.name}\n")
+                writer.write("作者：${sb.author}\n")
+                if (!sb.intro.isNullOrBlank()) writer.write("简介：${sb.intro}\n")
+                writer.write("━━━━━━━━━━━━━━━━━━━━━━\n\n")
+
+                for ((idx, chapter) in chapters.withIndex()) {
+                    if (chapter.isVolume || chapter.title.isNullOrBlank()) continue
+                    val content = withTimeoutOrNull(15000) {
+                        runCatching {
+                            val nextUrl = if (idx + 1 < chapters.size) chapters[idx + 1].url else ""
+                            wBook.getBookContent(bookInfo, chapter, nextUrl)
+                        }.getOrNull()
+                    } ?: "【内容获取失败】\n"
+
+                    writer.write("第${idx + 1}章 ${chapter.title}\n\n")
+                    writer.write(content)
+                    writer.write("\n\n")
+                    delay(200)
+                }
+            }
+        } catch (_: Exception) {}
+    }
+
+    private fun sanitizeFileName(name: String): String {
+        return name.replace(Regex("[/\\\\:*?\"<>|]"), "_").take(100)
+    }
+
     private fun resolveExploreUrls(bs: BookSource): List<String> {
         val kindRaw = kotlin.runCatching { bs.exploreKinds(true) }.getOrNull()?.trim() ?: bs.exploreUrl?.trim() ?: return emptyList()
 
-        // 尝试 JSON 数组解析 [{"title":"xxx","url":"..."}, ...]
         if (kindRaw.startsWith("[")) {
             return try {
                 val type = object : TypeToken<List<Map<String, String>>>() {}.type
@@ -93,12 +144,10 @@ object AutoCrawl {
                     if (url.startsWith("http")) url else bs.bookSourceUrl.trimEnd('/') + "/" + url.trimStart('/')
                 }
             } catch (_: Exception) {
-                // JSON解析失败，直接用 exploreUrl
                 listOf(bs.exploreUrl ?: bs.bookSourceUrl)
             }
         }
 
-        // "名称::url" 格式
         if (kindRaw.contains("::")) {
             val urls = kindRaw.split("\n").mapNotNull { line ->
                 val parts = line.trim().split("::")
@@ -110,7 +159,6 @@ object AutoCrawl {
             if (urls.isNotEmpty()) return urls
         }
 
-        // 普通文本，按行作为URL
         return listOf(bs.exploreUrl ?: bs.bookSourceUrl)
     }
 }
