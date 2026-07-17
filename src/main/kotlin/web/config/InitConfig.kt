@@ -11,10 +11,11 @@ import com.google.gson.Gson
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.noear.solon.annotation.Bean
+import org.noear.solon.annotation.Inject
 import org.noear.solon.annotation.Configuration
-import book.webBook.AutoCrawl
+
 import org.slf4j.Logger
-import book.webBook.AutoCrawl
+
 import org.slf4j.LoggerFactory
 import web.controller.api.ApiWebSocket
 import web.util.cache.checkfile
@@ -34,7 +35,7 @@ class InitConfig {
 
 
 
-    @Inject(value = "\\${download.path:}", autoRefreshed=true)
+    @Inject(value = "\${download.path:}", autoRefreshed=true)
     lateinit var downloadPath: String
 
     @Bean
