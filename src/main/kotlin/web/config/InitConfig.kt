@@ -12,7 +12,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.noear.solon.annotation.Bean
 import org.noear.solon.annotation.Configuration
+import book.webBook.AutoCrawl
 import org.slf4j.Logger
+import book.webBook.AutoCrawl
 import org.slf4j.LoggerFactory
 import web.controller.api.ApiWebSocket
 import web.util.cache.checkfile
@@ -31,6 +33,19 @@ class InitConfig {
     }
 
 
+
+    @Inject(value = "\\${download.path:}", autoRefreshed=true)
+    lateinit var downloadPath: String
+
+    @Bean
+    fun initAutoCrawl() {
+        if (downloadPath.isNotBlank()) {
+            AutoCrawl.downloadDir = downloadPath
+            val dir = java.io.File(downloadPath)
+            if (!dir.exists()) dir.mkdirs()
+            logger.info("自动下载目录: $downloadPath")
+        }
+    }
 
     @Bean
     fun cookieinit() {
