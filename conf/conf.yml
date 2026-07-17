@@ -40,3 +40,7 @@ server.http:
 #  appender:
 #    file:
 #      enable: false
+# 自动下载配置
+download:
+  path: "" # 下载目录，留空不下载。如 /mnt/user/娱乐/图书馆/轻阅读
+
