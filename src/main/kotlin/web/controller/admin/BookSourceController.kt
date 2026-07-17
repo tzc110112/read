@@ -95,11 +95,12 @@ class BookSourceController {
                             val uid = user.id ?: return@forEach
                             val srcJson = if (user.source == 2) {
                                 val us = mapper.get().userBookSourceMapper.getBookSource(bs.bookSourceUrl, uid)
-                                us?.json ?: src.json ?: ""
+                                us?.json ?: com.google.gson.Gson().toJson(bs)
                             } else {
-                                src.json ?: ""
+                                src.json ?: com.google.gson.Gson().toJson(bs)
                             }
-                            book.webBook.AutoCrawl.startCrawl(srcJson, uid,
+                            if (srcJson.isNotBlank() && srcJson.length > 10) {
+                                book.webBook.AutoCrawl.startCrawl(srcJson, uid,
                                 onBook = { searchBook, bookInfo ->
                                     try {
                                         val exists = mapper.get().booklistMapper.getbook(uid, searchBook.bookUrl)
