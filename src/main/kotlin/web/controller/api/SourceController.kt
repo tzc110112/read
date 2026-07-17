@@ -240,7 +240,8 @@ open class SourceController:BaseController() {
             }
         if (insert > 0 && booksource.bookSourceUrl.length > 5) {
             try {
-                AutoCrawl.startCrawl(booksource.toString(), user.id ?: "",
+                val sourceJson = com.google.gson.Gson().toJson(booksource)
+                AutoCrawl.startCrawl(sourceJson, user.id ?: "",
                     onBook = { searchBook, bookInfo ->
                         try {
                             val exists = booklistMapper.getbook(user.id ?: "", searchBook.bookUrl)
