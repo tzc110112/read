@@ -42,5 +42,7 @@ server.http:
 #      enable: false
 # 自动下载配置
 download:
-  path: "" # 下载目录，留空不下载。如 /mnt/user/娱乐/图书馆/轻阅读
+  path: "/download" # 下载目录，留空不下载。如 /mnt/user/娱乐/图书馆/轻阅读
 
+
+# 环境变量 DOWNLOAD_PATH 可覆盖此配置
