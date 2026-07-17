@@ -75,7 +75,7 @@ class UpdateDownloadJob : Runnable {
                                     // 获取最新章节列表
                                     val chapters = runCatching {
                                         runBlocking { wBook.getChapterList(
-                                            book.webBook.Book().apply {
+                                            book.model.Book().apply {
                                                 bookUrl = book.bookUrl ?: return@apply
                                                 tocUrl = book.tocUrl ?: ""
                                                 origin = sourceUrl
@@ -99,7 +99,7 @@ class UpdateDownloadJob : Runnable {
                                             // 追加新章节
                                             contentFile.appendText("\n━━━ 更新于 ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm").format(java.util.Date())} ━━━\n\n")
                                             
-                                            val bookInfo = book.webBook.Book().apply {
+                                            val bookInfo = book.model.Book().apply {
                                                 bookUrl = book.bookUrl ?: ""
                                                 origin = sourceUrl
                                                 originName = book.originName ?: ""
